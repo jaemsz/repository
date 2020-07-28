@@ -6,6 +6,9 @@ class Percolation:
         # n x n matrix
         self.n = n
                 
+        # number of open sites
+        self.openSiteCount = 0
+
         # first and last rows
         self.first_row = 1
         self.last_row = n+1
@@ -21,11 +24,9 @@ class Percolation:
         self.components = (n+2)*n
 
         # define virtual top site to be at [0,n//2]
-        self.virtual_top_site = [0,n//2]
         self.virtual_top_site_id = self.gridToId(0,n//2)
         
         # define virtual bottom site to be at [n-1,n//2]
-        self.virtual_bottom_site = [n+1,n//2]
         self.virtual_bottom_site_id = self.gridToId(n+1,n//2)
         
         # connect virtual top and bottom sites 
@@ -75,7 +76,7 @@ class Percolation:
         return self.root(p) == self.root(q)
     
     # @return number of components
-    def components(self):
+    def componentsCount(self):
         return self.components
         
     # @param row : int value of grid row
@@ -99,6 +100,8 @@ class Percolation:
                     p = self.gridToId(row,col)
                     q = self.gridToId(next_row,next_col)
                     self.union(p,q)
+            
+        self.openSiteCount += 1
         
     # @param row : int value of grid row
     # @param col : int value of grid col
@@ -122,9 +125,9 @@ class Percolation:
         # is grid[row][col] connected to virtual top site
         return self.isConnected(p, self.virtual_top_site_id)
     
-    # @return the number of components
+    # @return the number of open sites
     def numberOfOpenSites(self):
-        return self.components()
+        return self.openSiteCount
     
     # @return True if there is a connection from virtual top site to virtual bottom site
     def percolates(self):
