@@ -14,20 +14,24 @@ class Percolation:
         self.openSiteCount = 0
 
         # number of components
-        self.componentsCount = (n+2)*n
+        self.componentsCount = n*n+2
 
         # create 2 additional rows for virtual top and bottom sites
-        self.grid = [[0 for c in range(n)] for r in range(n+2)]
+        self.grid = []
+        self.grid.append([0])
+        for r in range(n):
+            self.grid.append([0 for j in range(n)])
+        self.grid.append([0])
         
         # additional storage for weighted fast union with path compression
-        self.id = [x for x in range((n+2)*n)]
-        self.sz = [1 for x in range((n+2)*n)]
-        
-        # define virtual top site to be at [0,n//2]
-        self.virtual_top_site_id = self.__gridToId(0,n//2)
-        
-        # define virtual bottom site to be at [n-1,n//2]
-        self.virtual_bottom_site_id = self.__gridToId(n+1,n//2)
+        self.id = [x for x in range(n*n+2)]
+        self.sz = [1 for x in range(n*n+2)]
+
+        # define virtual top site to be at [0,0]
+        self.virtual_top_site_id = self.__gridToId(0,0)
+                                    
+        # define virtual bottom site to be at [n+1,0]
+        self.virtual_bottom_site_id = self.__gridToId(n+1,0)
         
         # connect virtual top and bottom sites 
         for c in range(n):
@@ -73,7 +77,11 @@ class Percolation:
     # @param col : int value of col
     # @return id index of row, col
     def __gridToId(self, row, col):
-        return row * 10 + col
+        if row == 0 and col == 0:
+            return 0
+        elif row == self.n+1 and col == 0:
+            return self.n * self.n + 1
+        return 10 * (row-1) + col + 1
     
     # @param row : int value of grid row
     # @param col : int value of grid col
@@ -139,7 +147,7 @@ class Percolation:
         return self.__isConnectedId(self.virtual_top_site_id, self.virtual_bottom_site_id)
 
     # @return number of components
-    def numberOfcomponents(self):
+    def numberOfComponents(self):
         return self.componentsCount
 
     # @return the number of open sites
