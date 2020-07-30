@@ -40,7 +40,7 @@ class DequeueDLList:
     
     # @param item : push the item to the front of the dequeue
     def pushFront(self, item):
-        newNode = Node(item)
+        newNode = self.Node(item)
         
         if not self.head:
             newNode.next = None
@@ -57,7 +57,7 @@ class DequeueDLList:
     
     # @param item : push the item to the back of the dequeue
     def push(self, item):
-        newNode = Node(item)
+        newNode = self.Node(item)
         
         if not self.head:
             newNode.next = None
@@ -114,5 +114,5 @@ class DequeueDLList:
     
     # @return : return an iterator for the dequeue object
     def __iter__(self):
-        return DequeueDLListIterator(self)
+        return self.DequeueDLListIterator(self)
         
