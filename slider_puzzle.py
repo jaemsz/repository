@@ -217,10 +217,10 @@ class Solver:
         if board.isGoal():
             return True
         
-        hammingDist2Count = 0
-        hammingCountThreshold = len(board)*20
+        hammingDistCount = 0
+        hammingCountThreshold = len(board)*10000
                 
-        while not board.isGoal() and hammingDist2Count < hammingCountThreshold:
+        while not board.isGoal() and hammingDistCount < hammingCountThreshold:
             neighborBoards = board.neighbors()
             
             for nb in neighborBoards:
@@ -230,9 +230,9 @@ class Solver:
             board = binaryHeap.delMin()
             
             if board.hamming() == 2:
-                hammingDist2Count += 1
+                hammingDistCount += 1
                         
-        return (True if hammingDist2Count < hammingCountThreshold else False)
+        return (True if hammingDistCount < hammingCountThreshold else False)
         
     def moves(self):
         # minimum number of moves to solve the initial board; -1 if unsolvable
