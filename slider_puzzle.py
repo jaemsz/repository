@@ -233,7 +233,6 @@ class Solver:
             
             if board.hamming() >= 2:
                 hammingDistCount += 1
-            print(board.hamming(), hammingDistCount)
                         
         return (True if hammingDistCount < hammingCountThreshold else False)
         
