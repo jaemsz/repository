@@ -216,13 +216,13 @@ class Solver:
         binaryHeap = BinaryHeap()
         binaryHeap.insert(board)
         
-        if board.isGoal():
+        if board.manhattan() == 0:
             return True
         
         hammingDistCount = 0
         hammingCountThreshold = len(board)*10000
                 
-        while not board.isGoal() and hammingDistCount < hammingCountThreshold:
+        while board.manhattan() != 0 and hammingDistCount < hammingCountThreshold:
             neighborBoards = board.neighbors()
             
             for nb in neighborBoards:
@@ -244,13 +244,13 @@ class Solver:
         binaryHeap = BinaryHeap()
         binaryHeap.insert(board)
         
-        if board.isGoal():
+        if board.manhattan() == 0:
             return 0
         
         if not self.isSolvable():
             return -1
         
-        while not board.isGoal():
+        while board.manhattan() != 0:
             neighborBoards = board.neighbors()
             
             for nb in neighborBoards:
@@ -272,13 +272,13 @@ class Solver:
         
         ret.append(board)
         
-        if board.isGoal():
+        if board.manhattan() == 0:
             return ret
         
         if not self.isSolvable():
             return []
                 
-        while not board.isGoal():
+        while board.manhattan() != 0:
             neighborBoards = board.neighbors()
             
             for nb in neighborBoards:
@@ -295,7 +295,19 @@ b = [
     [4,2,5],
     [7,8,6]
 ]
-solver = Solver(Board(b))
+b2 = [
+    [1,2,3],
+    [4,5,6],
+    [8,7,0]
+]
+b3 = [
+    [1,2,3,4],
+    [5,6,7,8],
+    [9,10,11,0],
+    [13,14,15,12]
+]
+
+solver = Solver(Board(b2))
 for board in solver.solution():
     print(board)
 solver.moves()
