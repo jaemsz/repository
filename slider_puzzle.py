@@ -296,7 +296,7 @@ b = [
     [4,2,5],
     [7,8,6]
 ]
-solver = Solver(Board(b3))
+solver = Solver(Board(b))
 for board in solver.solution():
     print(board)
 solver.moves()
