@@ -229,7 +229,7 @@ class Solver:
             
             board = binaryHeap.delMin()
             
-            if board.hamming() == 2:
+            if board.hamming() >= 2:
                 hammingDistCount += 1
                         
         return (True if hammingDistCount < hammingCountThreshold else False)
