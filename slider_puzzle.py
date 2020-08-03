@@ -6,7 +6,8 @@ import abc
 class CompareInterface(metaclass=abc.ABCMeta):
     @classmethod
     def __subclasshook__(cls, subclass):
-        return hasattr(subclass, '__gt__') and callable(subclass.__gt__)
+        return hasattr(subclass, '__gt__') and callable(subclass.__gt__) \
+                hasattr(subclass, '__le__') and callable(subclass.__le__)
     
     @abc.abstractmethod
     def __gt__(self, right):
