@@ -7,7 +7,7 @@ class CompareInterface(metaclass=abc.ABCMeta):
     @classmethod
     def __subclasshook__(cls, subclass):
         return hasattr(subclass, '__gt__') and callable(subclass.__gt__) \
-                hasattr(subclass, '__le__') and callable(subclass.__le__)
+                and hasattr(subclass, '__le__') and callable(subclass.__le__)
     
     @abc.abstractmethod
     def __gt__(self, right):
@@ -85,9 +85,11 @@ class Board(CompareInterface):
         
         # map expected tile to position
         self.tileToPos = {}
+        counter = 1
         for r in range(self.N):
             for c in range(self.N):
-                self.tileToPos[(r+2*r) + (c+1)] = [r,c]
+                self.tileToPos[counter] = [r,c]
+                counter += 1
         self.tileToPos[self.N*self.N] = 0
         
     def __str__(self):
@@ -197,7 +199,7 @@ class Board(CompareInterface):
                 for r in range(self.N):
                     for c in range(self.N):
                         n[r][c] = self.board[r][c]
-                
+                        
                 n[next_row][next_col] = 0
                 n[pos0[0]][pos0[1]] = self.board[next_row][next_col]
                 neighbors.append(Board(n))
@@ -231,6 +233,7 @@ class Solver:
             
             if board.hamming() >= 2:
                 hammingDistCount += 1
+            print(board.hamming(), hammingDistCount)
                         
         return (True if hammingDistCount < hammingCountThreshold else False)
         
@@ -293,7 +296,7 @@ b = [
     [4,2,5],
     [7,8,6]
 ]
-solver = Solver(Board(b))
+solver = Solver(Board(b3))
 for board in solver.solution():
     print(board)
 solver.moves()
