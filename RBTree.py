@@ -10,7 +10,7 @@ class RBNode:
         self.left = None
         self.right = None
         self.color = RBNode.RED
-        self.count = 0
+        self.count = 1
         
 class RBTree:
     class RBTreeIterator:
