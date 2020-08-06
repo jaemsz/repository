@@ -28,9 +28,9 @@ class RBTree:
             if self.stack:
                 item = self.stack.pop()
                 self.curr = item.right
-                    
                 self.fillStack()
-                return item.key, item.val
+                
+                return item.key, item.val, item.count
 
             raise StopIteration
             
@@ -94,15 +94,21 @@ class RBTree:
             node.val = val
             
         if self.__isRed(node.right) and not self.__isRed(node.left):
-            node = self.__rotateLeft(node)
+            # This is a fix for a bug in Robert Sedgewick's lecture notes
+            tnode = self.__rotateLeft(node)
+            node.count = (1 + self.__size(node.left) + self.__size(node.right))
+            node = tnode
         
         if self.__isRed(node.left) and self.__isRed(node.left.left):
-            node = self.__rotateRight(node)
+            # This is a fix for a bug in Robert Sedgewick's lecture notes
+            tnode = self.__rotateRight(node)
+            node.count = (1 + self.__size(node.left) + self.__size(node.right))
+            node = tnode
             
         if self.__isRed(node.left) and self.__isRed(node.right):
             self.__flipColors(node)
         
-        node.count = 1 + self.__size(node.left) + self.__size(node.right)
+        node.count = (1 + self.__size(node.left) + self.__size(node.right))
         return node
         
     def put(self, key, val):
@@ -191,13 +197,22 @@ class RBTree:
             return self.__rank(node.left, key)
         
         elif key > node.key:
-            return 1 + self.__size(node.left) + self.__rank(node.right, key)
+            return (1 + self.__size(node.left) + self.__rank(node.right, key))
         
         else:
             return self.__size(node.left)
     
     def rank(self, key):
         return self.__rank(self.root, key)
+    
+    def rangeCount(self, loKey, hiKey):
+        hiKeyVal = self.get(hiKey)
+        
+        if hiKeyVal is not None:
+            return (self.rank(hiKey) - self.rank(loKey) + 1)
+        
+        else:
+            return (self.rank(hiKey) - self.rank(loKey))
     
     def __iter__(self):
         return self.RBTreeIterator(self)
@@ -207,5 +222,7 @@ bst = RBTree()
 
 import random
 random.seed(17)
+keys = []
 for i in random.sample(range(1000),20):
+    keys.append(i)
     bst.put(i,i)
