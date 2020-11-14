@@ -71,8 +71,6 @@ class MyPTHub:
         if response.status_code == 200:
             self.access_token = json.loads(response.text)['access_token']
             self.logger.info('Logged into mypthub.net')
-            self.logger.warning('testing')
-            self.logger.error('testing')
             return True
             
         self.logger.error('Failed to login to mypthub.net. status_code = ' + str(response.status_code))
