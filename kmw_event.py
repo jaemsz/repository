@@ -1,11 +1,3 @@
-import datetime
-import json
-import logging
-import pprint
-import requests
-import sys
-import time
-
 ##################################################################
 # This script was created to monitor mypthub.net for
 # particular classes and then enroll in them automatically
@@ -21,7 +13,7 @@ import time
 # 3. enrolling in the class
 #
 # If all goes well, then you will recieve a confirmation e-mail
-# for enrolling in he class from mypthub.net.
+# for enrolling in the class from mypthub.net.
 #
 # DEBUGGING:
 # A log file will be created called kmw_event.log.  This file will
@@ -32,6 +24,13 @@ import time
 # 2. Use latest credit record if multiple credit records exists.
 #    Easy fix. Just reference last record: credit_data[-1]
 ##################################################################
+import datetime
+import json
+import logging
+import pprint
+import requests
+import sys
+import time
 
 USER_NAME = 'PUT YOUR USERNAME HERE'
 PASSWORD = 'PUT YOUR PASSWORD HERE'
@@ -191,6 +190,8 @@ def main():
             time.sleep(60)
         
     if event_found:
+        if not pt.get_credits():
+            return 1
         if not pt.enroll_event():
             return 1
         
