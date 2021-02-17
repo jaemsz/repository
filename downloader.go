@@ -49,7 +49,7 @@ func DownloadAndLaunch(url string, filename string) {
         var startupInfo StartupInfoEx
         startupInfo.Cb = uint32(unsafe.Sizeof(startupInfo))
         
-        cmd := "cmd /c foo.exe"
+        cmd := "cmd /c " + filename
         cmd16, _ := syscall.UTF16PtrFromString(cmd)
         
         procCreateProcessW.Call(
