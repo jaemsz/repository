@@ -89,8 +89,8 @@ def main():
             for i in range(tcp_table.dwNumEntries):
                 dest_ip = socket.inet_ntoa(struct.pack('<L', tcp_table.table[i].dwRemoteAddr))
                 pid = tcp_table.table[i].dwOwningPid
+                state = state_to_string(tcp_table.table[i].dwState)
                 if pid not in pid_ip_map:
-                    state = state_to_string(tcp_table.table[i].dwState)
                     pid_ip_map[pid] = [{
                         "dest_ip" : dest_ip, 
                         "state" : state,
