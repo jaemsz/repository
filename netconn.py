@@ -19,7 +19,10 @@ import os
 import sys
 import pymongo
 
-FILENAME_EXCLUSIONS = []
+FILENAME_EXCLUSIONS = [
+    "firefox.exe"
+]
+
 IP_EXCLUSIONS = [
     "0.0.0.0",
     "127.0.0.1",
@@ -28,7 +31,7 @@ IP_EXCLUSIONS = [
 
 OUTPUT_NORMAL = 0
 OUTPUT_JSON = 1
-OUTPUT_DB = 2
+OUTPUT_TABLE = 2
 OUTPUT_DIFF = 3
 OUTPUT_DUMP = 4
 OUTPUT_DROP = 5
@@ -102,7 +105,13 @@ def state_to_string(state):
     else:
         return "<UNKNOWN>"
         
-def get_sha256(command_line):
+def get_sha256_from_path(file_path):
+    with open(file_path, "rb") as f:
+        contents = f.read()
+        sha256 = hashlib.sha256(contents).hexdigest()
+    return sha256
+
+def get_sha256_from_cmd_line(command_line):
     if not command_line:
         return "<UNKNOWN>"
     else:
@@ -111,10 +120,29 @@ def get_sha256(command_line):
         if not dir_path:
             return "<UNKNOWN>"
         else:
-            with open(file_path, "rb") as f:
-                contents = f.read()
-                sha256 = hashlib.sha256(contents).hexdigest()
-            return sha256
+            return get_sha256_from_path(file_path)   
+    
+def isPE(file_path):
+    with open(file_path, "rb") as f:
+        contents = f.read(2)
+    if contents[0] == 0x4D and contents[1] == 0x5A:
+        # TODO: Need to check more fields
+        return True
+    return False
+
+def get_loaded_modules_list(pid):
+    loaded_modules = []
+    try:
+        p = psutil.Process(pid)
+        for dll in p.memory_maps():
+            if isPE(dll.path):
+                loaded_modules.append({
+                    "module_path" : dll.path,
+                    "module_sha256" : get_sha256_from_path(dll.path),
+                })
+    except:
+        return []
+    return loaded_modules
     
 def get_data():
     pid_ip_map = {}
@@ -143,7 +171,8 @@ def get_data():
                     pid_ip_map[pid] = {
                         "filename" : psutil.Process(pid).name(),
                         "cmd_line" : cmd_line,
-                        "sha256" : get_sha256(cmd_line),     
+                        "sha256" : get_sha256_from_cmd_line(cmd_line),
+                        "loaded_modules" : get_loaded_modules_list(pid),
                         "connections" : [
                             {
                                 "src" : src_ip + ":" + str(src_port),
@@ -161,7 +190,7 @@ def get_data():
                         }
                     )
     return pid_ip_map
-
+    
 def is_dst_in_table(col, dst):
     found = False
     try:
@@ -171,8 +200,8 @@ def is_dst_in_table(col, dst):
     except IndexError:
         pass
     return found
-
-def save_to_db(pid_ip_map):
+    
+def save_to_table(pid_ip_map):
     client = pymongo.MongoClient("mongodb://localhost:27017/")
     db = client["security"]
     col = db["gettcptable2"]
@@ -184,9 +213,9 @@ def save_to_db(pid_ip_map):
                 dst = conn["dst"]
                 found = is_dst_in_table(col, dst)
                 if not found and dst.split(":")[0] not in IP_EXCLUSIONS:
-                    x = col.insert_one({"dst" : conn["dst"]})
-                    print(x.inserted_id, conn["dst"])
-
+                    x = col.insert_one({"dst" : dst})
+                    print("DB: {}".format(dst))
+    
 def output_diff_dst(pid_ip_map):
     client = pymongo.MongoClient("mongodb://localhost:27017/")
     db = client["security"]
@@ -199,7 +228,7 @@ def output_diff_dst(pid_ip_map):
                 dst = conn["dst"]
                 found = is_dst_in_table(col, dst)
                 if not found and dst.split(":")[0] not in IP_EXCLUSIONS:
-                    print(conn["dst"])
+                    print("DIFF: {}".format(dst))
     
 def dump_table():
     client = pymongo.MongoClient("mongodb://localhost:27017/")
@@ -208,13 +237,13 @@ def dump_table():
     
     for row in col.find():
         print(row)
-
+    
 def drop_table():
     client = pymongo.MongoClient("mongodb://localhost:27017/")
     db = client["security"]
     col = db["gettcptable2"]
     col.drop()
-
+        
 def main(output_type):
     if output_type == OUTPUT_DUMP:
         dump_table()
@@ -223,7 +252,7 @@ def main(output_type):
     if output_type == OUTPUT_DROP:
         drop_table()
         return
-
+    
     pid_ip_map = get_data()
     
     # print out the TCP connections
@@ -241,8 +270,8 @@ def main(output_type):
         print(json.dumps(pid_ip_map, indent=4))
         return
         
-    if output_type == OUTPUT_DB:
-        save_to_db(pid_ip_map)
+    if output_type == OUTPUT_TABLE:
+        save_to_table(pid_ip_map)
         return
         
     if output_type == OUTPUT_DIFF:
@@ -251,14 +280,15 @@ def main(output_type):
     
 if __name__ == "__main__":
     output_type = OUTPUT_NORMAL
-    if len(sys.argv) == 2 and sys.argv[1] == "JSON":
-        output_type = OUTPUT_JSON
-    elif len(sys.argv) == 2 and sys.argv[1] == "DB":
-        output_type = OUTPUT_DB
-    elif len(sys.argv) == 2 and sys.argv[1] == "DIFF":
-        output_type = OUTPUT_DIFF
-    elif len(sys.argv) == 2 and sys.argv[1] == "DUMP":
-        output_type = OUTPUT_DUMP
-    elif len(sys.argv) == 2 and sys.argv[1] == "DROP":
-        output_type = OUTPUT_DROP
+    if len(sys.argv) == 2:
+        if sys.argv[1] == "JSON":
+            output_type = OUTPUT_JSON
+        elif sys.argv[1] == "DB":
+            output_type = OUTPUT_TABLE
+        elif sys.argv[1] == "DIFF":
+            output_type = OUTPUT_DIFF
+        elif sys.argv[1] == "DUMP":
+            output_type = OUTPUT_DUMP
+        elif sys.argv[1] == "DROP":
+            output_type = OUTPUT_DROP
     main(output_type)
