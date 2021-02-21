@@ -1,3 +1,14 @@
+# Tool to lookup IP addresses in the TCP table
+# It can also:
+# 1.  Add IP address entries into a mongo DB
+# 2.  Diff scanned IP addresses with existing addresses in the DB
+# 3.  Provide JSON output of the IP addresses including:
+#     a.  filename
+#     b.  command line
+#     c.  file SHA256
+#     d.  source address
+#     e.  destination address
+
 from ctypes import *
 import socket
 import struct
@@ -151,6 +162,16 @@ def get_data():
                     )
     return pid_ip_map
 
+def is_dst_in_table(col, dst):
+    found = False
+    try:
+        items = col.find({"dst" : dst})
+        if items[0]:
+            found = True
+    except IndexError:
+        pass
+    return found
+
 def save_to_db(pid_ip_map):
     client = pymongo.MongoClient("mongodb://localhost:27017/")
     db = client["security"]
@@ -161,13 +182,7 @@ def save_to_db(pid_ip_map):
         if filename not in FILENAME_EXCLUSIONS:
             for conn in pid_ip_map[pid]["connections"]:
                 dst = conn["dst"]
-                found = False
-                try:
-                    items = col.find({"dst" : dst})
-                    if items[0]:
-                        found = True
-                except IndexError:
-                    pass
+                found = is_dst_in_table(col, dst)
                 if not found and dst.split(":")[0] not in IP_EXCLUSIONS:
                     x = col.insert_one({"dst" : conn["dst"]})
                     print(x.inserted_id, conn["dst"])
@@ -182,13 +197,7 @@ def output_diff_dst(pid_ip_map):
         if filename not in FILENAME_EXCLUSIONS:
             for conn in pid_ip_map[pid]["connections"]:
                 dst = conn["dst"]
-                found = False
-                try:
-                    items = col.find({"dst" : dst})
-                    if items[0]:
-                        found = True
-                except IndexError:
-                    pass
+                found = is_dst_in_table(col, dst)
                 if not found and dst.split(":")[0] not in IP_EXCLUSIONS:
                     print(conn["dst"])
     
