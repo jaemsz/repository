@@ -6,9 +6,21 @@ import json
 import hashlib
 import os
 import sys
+import pymongo
+
+FILENAME_EXCLUSIONS = []
+IP_EXCLUSIONS = [
+    "0.0.0.0",
+    "127.0.0.1",
+    "172.16.0.154",
+]
 
 OUTPUT_NORMAL = 0
 OUTPUT_JSON = 1
+OUTPUT_DB = 2
+OUTPUT_DIFF = 3
+OUTPUT_DUMP = 4
+OUTPUT_DROP = 5
 
 NO_ERROR = 0
 ERROR_INSUFFICIENT_BUFFER = 122
@@ -93,7 +105,7 @@ def get_sha256(command_line):
                 sha256 = hashlib.sha256(contents).hexdigest()
             return sha256
     
-def main(output_type):
+def get_data():
     pid_ip_map = {}
     
     windll.iphlpapi.GetTcpTable2.argtypes = [c_void_p, POINTER(c_ulong), c_bool]
@@ -115,13 +127,12 @@ def main(output_type):
                 pid = tcp_table.table[i].dwOwningPid
                 state = state_to_string(tcp_table.table[i].dwState)
                 cmd_line = psutil.Process(pid).cmdline()
-                sha256 = get_sha256(cmd_line)
                 
                 if pid not in pid_ip_map:
                     pid_ip_map[pid] = {
                         "filename" : psutil.Process(pid).name(),
                         "cmd_line" : cmd_line,
-                        "sha256" : sha256,                        
+                        "sha256" : get_sha256(cmd_line),     
                         "connections" : [
                             {
                                 "src" : src_ip + ":" + str(src_port),
@@ -134,10 +145,77 @@ def main(output_type):
                     pid_ip_map[pid]["connections"].append(
                         {
                             "src" : src_ip + ":" + str(src_port),
-                            "dst" : dst_ip + ":" + str(dst_port), 
+                            "dst" : dst_ip + ":" + str(dst_port),
                             "state" : state,
                         }
                     )
+    return pid_ip_map
+
+def save_to_db(pid_ip_map):
+    client = pymongo.MongoClient("mongodb://localhost:27017/")
+    db = client["security"]
+    col = db["gettcptable2"]
+    
+    for pid in pid_ip_map:
+        filename = pid_ip_map[pid]["filename"]
+        if filename not in FILENAME_EXCLUSIONS:
+            for conn in pid_ip_map[pid]["connections"]:
+                dst = conn["dst"]
+                found = False
+                try:
+                    items = col.find({"dst" : dst})
+                    if items[0]:
+                        found = True
+                except IndexError:
+                    pass
+                if not found and dst.split(":")[0] not in IP_EXCLUSIONS:
+                    x = col.insert_one({"dst" : conn["dst"]})
+                    print(x.inserted_id, conn["dst"])
+
+def output_diff_dst(pid_ip_map):
+    client = pymongo.MongoClient("mongodb://localhost:27017/")
+    db = client["security"]
+    col = db["gettcptable2"]
+    
+    for pid in pid_ip_map:
+        filename = pid_ip_map[pid]["filename"]
+        if filename not in FILENAME_EXCLUSIONS:
+            for conn in pid_ip_map[pid]["connections"]:
+                dst = conn["dst"]
+                found = False
+                try:
+                    items = col.find({"dst" : dst})
+                    if items[0]:
+                        found = True
+                except IndexError:
+                    pass
+                if not found and dst.split(":")[0] not in IP_EXCLUSIONS:
+                    print(conn["dst"])
+    
+def dump_table():
+    client = pymongo.MongoClient("mongodb://localhost:27017/")
+    db = client["security"]
+    col = db["gettcptable2"]
+    
+    for row in col.find():
+        print(row)
+
+def drop_table():
+    client = pymongo.MongoClient("mongodb://localhost:27017/")
+    db = client["security"]
+    col = db["gettcptable2"]
+    col.drop()
+
+def main(output_type):
+    if output_type == OUTPUT_DUMP:
+        dump_table()
+        return
+    
+    if output_type == OUTPUT_DROP:
+        drop_table()
+        return
+
+    pid_ip_map = get_data()
     
     # print out the TCP connections
     if output_type == OUTPUT_NORMAL:
@@ -148,11 +226,30 @@ def main(output_type):
             for c in pid_ip_map[pid]["connections"]:
                 print("{:10}{:25}{:10}{:25}{:10}{:25}".format("SRC: ", c.get("src"), "DST: ", c.get("dst"), "STATE: ", c.get("state")))
             print()
-    else:
+        return
+        
+    if output_type == OUTPUT_JSON:
         print(json.dumps(pid_ip_map, indent=4))
+        return
+        
+    if output_type == OUTPUT_DB:
+        save_to_db(pid_ip_map)
+        return
+        
+    if output_type == OUTPUT_DIFF:
+        output_diff_dst(pid_ip_map)
+        return
     
 if __name__ == "__main__":
     output_type = OUTPUT_NORMAL
     if len(sys.argv) == 2 and sys.argv[1] == "JSON":
         output_type = OUTPUT_JSON
+    elif len(sys.argv) == 2 and sys.argv[1] == "DB":
+        output_type = OUTPUT_DB
+    elif len(sys.argv) == 2 and sys.argv[1] == "DIFF":
+        output_type = OUTPUT_DIFF
+    elif len(sys.argv) == 2 and sys.argv[1] == "DUMP":
+        output_type = OUTPUT_DUMP
+    elif len(sys.argv) == 2 and sys.argv[1] == "DROP":
+        output_type = OUTPUT_DROP
     main(output_type)
