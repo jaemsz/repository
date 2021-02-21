@@ -1,9 +1,23 @@
 from ctypes import *
 import socket
 import struct
+import psutil
 
 NO_ERROR = 0
 ERROR_INSUFFICIENT_BUFFER = 122
+
+MIB_TCP_STATE_CLOSED = 1
+MIB_TCP_STATE_LISTEN = 2
+MIB_TCP_STATE_SYN_SENT = 3
+MIB_TCP_STATE_SYN_RCVD = 4
+MIB_TCP_STATE_ESTAB = 5
+MIB_TCP_STATE_FIN_WAIT1 = 6
+MIB_TCP_STATE_FIN_WAIT2 = 7
+MIB_TCP_STATE_CLOSE_WAIT = 8
+MIB_TCP_STATE_CLOSING = 9
+MIB_TCP_STATE_LAST_ACK = 10
+MIB_TCP_STATE_TIME_WAIT = 11
+MIB_TCP_STATE_DELETE_TCB = 12
 
 TcpConnectionOffloadStateInHost = 0
 TcpConnectionOffloadStateOffloading = 1
@@ -30,6 +44,34 @@ def MIB_TCPTABLE2_FACTORY(size):
         ]
     return MIB_TCPTABLE2()
     
+def state_to_string(state):
+    if state == MIB_TCP_STATE_CLOSED:
+        return "MIB_TCP_STATE_CLOSED"
+    elif state == MIB_TCP_STATE_LISTEN:
+        return "MIB_TCP_STATE_LISTEN"
+    elif state == MIB_TCP_STATE_SYN_SENT:
+        return "MIB_TCP_STATE_SYN_SENT"
+    elif state == MIB_TCP_STATE_SYN_RCVD:
+        return "MIB_TCP_STATE_SYN_RCVD"
+    elif state == MIB_TCP_STATE_ESTAB:
+        return "MIB_TCP_STATE_ESTAB"
+    elif state == MIB_TCP_STATE_FIN_WAIT1:
+        return "MIB_TCP_STATE_FIN_WAIT1"
+    elif state == MIB_TCP_STATE_FIN_WAIT2:
+        return "MIB_TCP_STATE_FIN_WAIT2"
+    elif state == MIB_TCP_STATE_CLOSE_WAIT:
+        return "MIB_TCP_STATE_CLOSE_WAIT"
+    elif state == MIB_TCP_STATE_CLOSING:
+        return "MIB_TCP_STATE_CLOSING"
+    elif state == MIB_TCP_STATE_LAST_ACK:
+        return "MIB_TCP_STATE_LAST_ACK"
+    elif state == MIB_TCP_STATE_TIME_WAIT:
+        return "MIB_TCP_STATE_TIME_WAIT"
+    elif state == MIB_TCP_STATE_DELETE_TCB:
+        return "MIB_TCP_STATE_DELETE_TCB"
+    else:
+        return "<UNKNOWN>"
+        
 def main():
     pid_ip_map = {}
 
@@ -48,16 +90,24 @@ def main():
                 dest_ip = socket.inet_ntoa(struct.pack('<L', tcp_table.table[i].dwRemoteAddr))
                 pid = tcp_table.table[i].dwOwningPid
                 if pid not in pid_ip_map:
-                    pid_ip_map[pid] = [dest_ip]
+                    state = state_to_string(tcp_table.table[i].dwState)
+                    pid_ip_map[pid] = [{
+                        "dest_ip" : dest_ip, 
+                        "state" : state,
+                    }]
                 else:
                     if dest_ip not in pid_ip_map[pid]:
-                        pid_ip_map[pid].append(dest_ip)
+                        pid_ip_map[pid].append({
+                            "dest_ip" : dest_ip,
+                            "state" : state,
+                        })
     
     # print out the TCP connections
     for pid in pid_ip_map:
         print("PID: " + str(pid))
+        print("Process Name: " + psutil.Process(pid).name())
         for ip in pid_ip_map[pid]:
-            print("\t" + ip)
+            print("\t" + ip.get("dest_ip") + "\t" + ip.get("state"))
     
 if __name__ == "__main__":
     main()
