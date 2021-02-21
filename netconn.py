@@ -87,27 +87,32 @@ def main():
             print("ERROR: GetTcpTable2() failed, error = " + str(ret))
         else:
             for i in range(tcp_table.dwNumEntries):
-                dest_ip = socket.inet_ntoa(struct.pack('<L', tcp_table.table[i].dwRemoteAddr))
+                src_ip = socket.inet_ntoa(struct.pack('<L', tcp_table.table[i].dwLocalAddr))
+                dst_ip = socket.inet_ntoa(struct.pack('<L', tcp_table.table[i].dwRemoteAddr))
+                src_port = tcp_table.table[i].dwLocalPort
+                dst_port = tcp_table.table[i].dwRemotePort
                 pid = tcp_table.table[i].dwOwningPid
                 state = state_to_string(tcp_table.table[i].dwState)
                 if pid not in pid_ip_map:
                     pid_ip_map[pid] = [{
-                        "dest_ip" : dest_ip, 
+                        "src" : src_ip + ":" + str(src_port),
+                        "dst" : dst_ip + ":" + str(dst_port), 
                         "state" : state,
                     }]
                 else:
-                    if dest_ip not in pid_ip_map[pid]:
-                        pid_ip_map[pid].append({
-                            "dest_ip" : dest_ip,
-                            "state" : state,
-                        })
+                    pid_ip_map[pid].append({
+                        "src" : src_ip + ":" + str(src_port),
+                        "dst" : dst_ip + ":" + str(dst_port), 
+                        "state" : state,
+                    })
     
     # print out the TCP connections
     for pid in pid_ip_map:
         print("PID: " + str(pid))
         print("Process Name: " + psutil.Process(pid).name())
         for ip in pid_ip_map[pid]:
-            print("\t" + ip.get("dest_ip") + "\t" + ip.get("state"))
+            print("{:10}{:25}{:10}{:25}{:10}{:25}".format("SRC: ", ip.get("src"), "DST: ", ip.get("dst"), "STATE: ", ip.get("state")))
+        print()
     
 if __name__ == "__main__":
     main()
