@@ -20,7 +20,8 @@ import sys
 import pymongo
 
 FILENAME_EXCLUSIONS = [
-    "firefox.exe"
+    "firefox.exe",
+    "System Idle Process",
 ]
 
 IP_EXCLUSIONS = [
@@ -135,7 +136,7 @@ def get_loaded_modules_list(pid):
     try:
         p = psutil.Process(pid)
         for dll in p.memory_maps():
-            if isPE(dll.path):
+            if isPE(dll.path) and os.path.splitext(dll.path)[1] != ".mui":
                 loaded_modules.append({
                     "module_path" : dll.path,
                     "module_sha256" : get_sha256_from_path(dll.path),
@@ -161,8 +162,8 @@ def get_data():
             for i in range(tcp_table.dwNumEntries):
                 src_ip = socket.inet_ntoa(struct.pack('<L', tcp_table.table[i].dwLocalAddr))
                 dst_ip = socket.inet_ntoa(struct.pack('<L', tcp_table.table[i].dwRemoteAddr))
-                src_port = tcp_table.table[i].dwLocalPort
-                dst_port = tcp_table.table[i].dwRemotePort
+                src_port = socket.ntohs(tcp_table.table[i].dwLocalPort)
+                dst_port = socket.ntohs(tcp_table.table[i].dwRemotePort)
                 pid = tcp_table.table[i].dwOwningPid
                 state = state_to_string(tcp_table.table[i].dwState)
                 cmd_line = psutil.Process(pid).cmdline()
@@ -176,7 +177,8 @@ def get_data():
                         "connections" : [
                             {
                                 "src" : src_ip + ":" + str(src_port),
-                                "dst" : dst_ip + ":" + str(dst_port), 
+                                "dst" : dst_ip + ":" + str(dst_port),
+                                "dst_name" : socket.getnameinfo((dst_ip, 0), 0)[0],
                                 "state" : state,
                             }
                         ]
@@ -186,6 +188,7 @@ def get_data():
                         {
                             "src" : src_ip + ":" + str(src_port),
                             "dst" : dst_ip + ":" + str(dst_port),
+                            "dst_name" : socket.getnameinfo((dst_ip, 0), 0)[0],
                             "state" : state,
                         }
                     )
@@ -228,7 +231,8 @@ def output_diff_dst(pid_ip_map):
                 dst = conn["dst"]
                 found = is_dst_in_table(col, dst)
                 if not found and dst.split(":")[0] not in IP_EXCLUSIONS:
-                    print("DIFF: {}".format(dst))
+                    name_info = socket.getnameinfo((dst.split(":")[0], 0), 0)[0]
+                    print("DIFF: {:20} {}".format(dst, name_info))
     
 def dump_table():
     client = pymongo.MongoClient("mongodb://localhost:27017/")
@@ -262,7 +266,11 @@ def main(output_type):
             print("Process Name: " + psutil.Process(pid).name())
             print("SHA256: " + pid_ip_map[pid]["sha256"])
             for c in pid_ip_map[pid]["connections"]:
-                print("{:10}{:25}{:10}{:25}{:10}{:25}".format("SRC: ", c.get("src"), "DST: ", c.get("dst"), "STATE: ", c.get("state")))
+                print("{:10}{:25}{:10}{:25}{:15}{:50}{:10}{:25}".format(
+                    "SRC: ", c.get("src"), 
+                    "DST: ", c.get("dst"),
+                    "DST_NAME: ", c.get("dst_name"),
+                    "STATE: ", c.get("state")))
             print()
         return
         
