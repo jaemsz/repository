@@ -44,15 +44,26 @@ def get_process_name(sip, dip, sport, dport):
                 dst_ip = socket.inet_ntoa(struct.pack('<L', tcp_table.table[i].dwRemoteAddr))
                 src_port = socket.ntohs(tcp_table.table[i].dwLocalPort)
                 dst_port = socket.ntohs(tcp_table.table[i].dwRemotePort)
-                if src_port == sport and dst_port == dport and src_ip == sip and dst_ip == dport:
-                    try:
-                        return psutil.Process(pid).name(), pid
-                    except psutil.NoSuchProcess:
-                        return "<UNKNOWN>", pid
+                if src_port == sport and dst_port == dport and src_ip == sip and dst_ip == dip:
+                    if pid == 4:
+                        return "System", pid
+                    else:
+                        try:
+                            return psutil.Process(pid).name(), pid
+                        except psutil.NoSuchProcess:
+                            return "<UNKNOWN>", pid
+                elif src_port == dport and dst_port == sport and src_ip == dip and dst_ip == sip:
+                    if pid == 4:
+                        return "System", pid
+                    else:
+                        try:
+                            return psutil.Process(pid).name(), pid
+                        except psutil.NoSuchProcess:
+                            return "<UNKNOWN>", pid
+    
     if pid == 4:
         return "System", pid
-    else:
-        return "<UNKNOWN>", pid
+    return "<UNKNOWN>", pid
     
 def on_packet(pkt):
     protocol = []
