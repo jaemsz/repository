@@ -6,7 +6,9 @@ import psutil
 
 NO_ERROR = 0
 ERROR_INSUFFICIENT_BUFFER = 122
+ERROR_NOT_FOUND = 1168
 
+    
 class MIB_TCPROW2(Structure):
     _fields_ = [
         ("dwState", c_ulong),
@@ -70,6 +72,7 @@ def on_packet(pkt):
         
     src_port = 0
     dst_port = 0
+    name = ""
     if TCP in pkt:
         src_port = pkt[TCP].sport
         dst_port = pkt[TCP].dport
@@ -79,35 +82,38 @@ def on_packet(pkt):
         dst_port = pkt[UDP].dport
         protocol.append("UDP")
     
-    name = ""
-    if DNS in pkt:
-        if pkt.qdcount > 0 and isinstance(pkt.qd, DNSQR):
-            name = pkt[DNS].qd.qname
-            name = name.decode("utf-8")
-            protocol.append("DNSQR")
-        elif pkt.ancount > 0 and isinstance(pkt.an, DNSRR):
-            name = pkt.an.rdata
-            name = name.decode("utf-8")
-            protocol.append("DNSRR")
-
+        if DNS in pkt:
+            if pkt.qdcount > 0 and isinstance(pkt.qd, DNSQR):
+                name = pkt[DNS].qd.qname
+                name = name.decode("utf-8")
+                protocol.append("DNSQR")
+            elif pkt.ancount > 0 and isinstance(pkt.an, DNSRR):
+                name = pkt.an.rdata
+                name = name.decode("utf-8")
+                protocol.append("DNSRR")
+    
     src_ip = ""
     dst_ip = ""
     if IP in pkt:
         src_ip = pkt[IP].src
         dst_ip = pkt[IP].dst
         protocol.append("IP")
-            
-    process_name, pid = get_process_name(src_ip, dst_ip, src_port, dst_port)
+        
+    if "UDP" not in protocol:
+        process_name, pid = get_process_name(src_ip, dst_ip, src_port, dst_port)
     
-    print("{:10}{:30}{:6}{:10}{:10}{:20}{:9}{:10}{:10}{:20}{:9}{:10}{:8}{:50}{:8}{:10}".format(
-        "PROCESS:", process_name, 
-        "PID:", str(pid), 
-        "SRC IP:", src_ip, 
-        "SPORT:", str(src_port), 
-        "DST IP:", dst_ip, 
-        "DPORT:", str(dst_port),
-        "DNS:", name, 
-        "PROT:", ",".join(protocol)))
+        print("{:10}{:30}{:6}{:10}{:10}{:20}{:9}{:10}{:10}{:20}{:9}{:10}{:8}{:50}{:8}{:10}".format(
+            "PROCESS:", process_name, 
+            "PID:", str(pid), 
+            "SRC IP:", src_ip, 
+            "SPORT:", str(src_port), 
+            "DST IP:", dst_ip, 
+            "DPORT:", str(dst_port),
+            "DNS:", name, 
+            "PROT:", ",".join(protocol)))
+    else:
+        # TODO: get process info for UDP traffic
+        print(pkt.summary())
     
     
 def main():
@@ -116,3 +122,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    #get_process_name_udp()
